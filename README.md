@@ -122,8 +122,6 @@ The system is designed to be extensible, allowing easy integration of many more 
 
 ## Architecture
 
-`OMI Device â†’ Webhook â†’ AI Processing (Claude API) â†’ FastRouter API â†’ MCP Selection â†’ MCP Execution â†’ MongoDB Storage`
-
 ### Flow Diagram
 
 1. **Voice Input**: User speaks naturally in daily conversations
