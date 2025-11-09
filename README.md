@@ -111,7 +111,7 @@ Event created and synced with reminders
 
 ```
 # Backend Setup
-git clone (https://github.com/charankosari/AI_boomi_hackathon)
+git clone https://github.com/charankosari/AI_boomi_hackathon
 cd omi
 npm install
 cp .env.example .env
