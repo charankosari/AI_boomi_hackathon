@@ -145,7 +145,7 @@ The system is designed to be extensible, allowing easy integration of many more 
 
 1. Navigate to the omi directory
 2. Install dependencies:
-   pm install
+   npm install
 3. Configure environment variables
 4. Set up MongoDB connection
 5. Configure OAuth credentials for Google services
@@ -155,10 +155,10 @@ The system is designed to be extensible, allowing easy integration of many more 
 
 1. Navigate to the omi_app directory
 2. Install dependencies:
-   pm install
+   npm install
 3. Configure API endpoints in config.js
 4. Run the app:
-   pm start
+   npm start
 
 ## Configuration
 
@@ -215,10 +215,8 @@ _Note: This is a mobile application. Screenshots and demo images can be included
 ## Future Enhancements
 
 - [ ] Additional MCP integrations
-- [ ] Voice response capabilities
 - [ ] Multi-language support
 - [ ] Advanced AI models integration
-- [ ] Real-time collaboration features
 - [ ] Analytics and insights dashboard
 - [ ] Custom workflow templates
 
