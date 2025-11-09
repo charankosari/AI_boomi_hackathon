@@ -163,9 +163,3 @@ npm start
 ## 🤝 Contributing
 
 Built by Charan & Nithish for the AI Boomi Hackathon.  
-We welcome contributions—add new MCPs, improve FastRouter logic, enhance UX, or expand AI capabilities.
-```
-
-All formatting, code blocks, mermaid flowchart, usage examples, security, and future roadmap are included—ready for your README!
-
-[1](https://github.com/charankosari/AI_boomi_hackathon/edit/main/README.md)
