@@ -122,7 +122,7 @@ The system is designed to be extensible, allowing easy integration of many more 
 
 ## Architecture
 
-### Flow Diagram
+### Flow
 
 1. **Voice Input**: User speaks naturally in daily conversations
 2. **Transcription**: OMI device transcribes speech to text
