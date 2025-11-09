@@ -176,27 +176,6 @@ The system is designed to be extensible, allowing easy integration of many more 
 - Set up FastRouter API as the central hub
 - Configure individual MCP server endpoints
 
-## Project Structure
-
-`hackathon/
-â”œâ”€â”€ omi/                    # Backend services and MCP servers
-â”‚   â”œâ”€â”€ index.js          # Main backend entry point
-â”‚   â”œâ”€â”€ mcp-manager.js      # MCP orchestration
-â”‚   â”œâ”€â”€ db.mongo.js         # MongoDB integration
-â”‚   â”œâ”€â”€ google-docs-mcp/    # Google Docs MCP server
-â”‚   â”œâ”€â”€ google-gmail-mcp/    # Gmail MCP server
-â”‚   â”œâ”€â”€ google-slides-mcp/  # Google Slides MCP server
-â”‚   â”œâ”€â”€ whatsapp-mcp/       # WhatsApp MCP server
-â”‚   â””â”€â”€ mcp.notion.mjs      # Notion MCP server
-â”œâ”€â”€ omi_app/                # React Native mobile application
-â”‚   â”œâ”€â”€ src/
-â”‚   â”‚   â”œâ”€â”€ components/     # UI components
-â”‚   â”‚   â”œâ”€â”€ screens/        # App screens
-â”‚   â”‚   â”œâ”€â”€ services/       # Business logic
-â”‚   â”‚   â””â”€â”€ utils/          # Utility functions
-â”‚   â””â”€â”€ App.js              # App entry point
-â””â”€â”€ README.md               # This file`
-
 ## Usage Examples
 
 ### Creating a Document
