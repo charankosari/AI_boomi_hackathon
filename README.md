@@ -1,6 +1,4 @@
-﻿# AI Boomi Hackathon - OMI Voice Assistant
-
-## Brief Overview
+﻿## Brief Overview
 
 OMI is an open-source voice assistant framework that enables developers to build intelligent, voice-driven applications. In this project, we built an AI agent on top of the OMI framework that transforms daily conversations into actionable tasks. Using the OMI device, transcribed text from everyday conversations is captured through webhooks and processed by our system using AI (Claude API) to understand user intent and automatically trigger the appropriate tools and services.
 
