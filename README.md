@@ -208,10 +208,6 @@ The system is designed to be extensible, allowing easy integration of many more 
 - Content structure is set up
 - Page is accessible and editable
 
-## Screenshots & Demo
-
-_Note: This is a mobile application. Screenshots and demo images can be included here to showcase the app interface, workflow execution, and various MCP integrations._
-
 ## Future Enhancements
 
 - [ ] Additional MCP integrations
