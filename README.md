@@ -1,6 +1,6 @@
 ﻿## Brief Overview
 
-OMI is an open-source voice assistant framework that enables developers to build intelligent, voice-driven applications. In this project, we built an AI agent on top of the OMI framework that transforms daily conversations into actionable tasks. Using the OMI device, transcribed text from everyday conversations is captured through webhooks and processed by our system using AI (Claude API) to understand user intent and automatically trigger the appropriate tools and services.
+Omi.me is an open-source AI-powered wearable and companion app that we built to act as your personal second brain. It continuously captures and analyzes conversations in real time, automatically handling tasks like note-taking, summarization, and reminders. More than just an assistant,we made Omi.me can take action on your behalf—helping you stay focused and get more done effortlessly.
 
 The system uses **FastRouter API** as a central hub that connects to multiple MCPs (Model Context Protocols) including Google Docs, Google Calendar, Gmail, Notion, Zomato, WhatsApp, and many more. The FastRouter API intelligently decides which tool to use based on the conversation context, or determines if it's just a normal conversation that doesn't require any action.
 
