@@ -1,0 +1,29 @@
+{
+  "name": "omi",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "nodemon index.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.68.0",
+    "@cocal/google-calendar-mcp": "^2.0.7",
+    "@modelcontextprotocol/sdk": "^1.21.0",
+    "chrono-node": "^2.9.0",
+    "cors": "^2.8.5",
+    "dotenv": "^17.2.3",
+    "express": "^5.1.0",
+    "mongoose": "^8.19.3",
+    "nodemon": "^3.1.10",
+    "openai": "^6.8.1",
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "@notionhq/notion-mcp-server": "^1.9.0"
+  }
+}

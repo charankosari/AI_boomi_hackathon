@@ -1,0 +1,601 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>OMI Dashboard - Conversations & Tool Actions</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+          Oxygen, Ubuntu, Cantarell, sans-serif;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        min-height: 100vh;
+        padding: 20px;
+      }
+
+      .container {
+        max-width: 1400px;
+        margin: 0 auto;
+      }
+
+      h1 {
+        color: white;
+        text-align: center;
+        margin-bottom: 30px;
+        font-size: 2.5em;
+        text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.2);
+      }
+
+      .tabs {
+        display: flex;
+        gap: 10px;
+        margin-bottom: 20px;
+        flex-wrap: wrap;
+      }
+
+      .tab {
+        padding: 12px 24px;
+        background: white;
+        border: none;
+        border-radius: 8px;
+        cursor: pointer;
+        font-size: 16px;
+        font-weight: 600;
+        transition: all 0.3s;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      }
+
+      .tab:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+      }
+
+      .tab.active {
+        background: #667eea;
+        color: white;
+      }
+
+      .content {
+        background: white;
+        border-radius: 12px;
+        padding: 30px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+        min-height: 500px;
+      }
+
+      .tab-content {
+        display: none;
+      }
+
+      .tab-content.active {
+        display: block;
+      }
+
+      .conversation-item {
+        border: 1px solid #e0e0e0;
+        border-radius: 8px;
+        padding: 20px;
+        margin-bottom: 20px;
+        background: #f9f9f9;
+        transition: all 0.3s;
+      }
+
+      .conversation-item:hover {
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        transform: translateY(-2px);
+      }
+
+      .conversation-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 15px;
+        padding-bottom: 10px;
+        border-bottom: 2px solid #667eea;
+      }
+
+      .session-id {
+        font-weight: 600;
+        color: #667eea;
+        font-size: 18px;
+      }
+
+      .message-count {
+        color: #666;
+        font-size: 14px;
+      }
+
+      .message {
+        padding: 12px;
+        margin: 10px 0;
+        border-radius: 6px;
+        border-left: 4px solid;
+      }
+
+      .message.user {
+        background: #e3f2fd;
+        border-color: #2196f3;
+      }
+
+      .message.assistant {
+        background: #f3e5f5;
+        border-color: #9c27b0;
+      }
+
+      .message-header {
+        font-weight: 600;
+        margin-bottom: 5px;
+        font-size: 14px;
+      }
+
+      .message-text {
+        color: #333;
+        line-height: 1.6;
+      }
+
+      .message-time {
+        font-size: 12px;
+        color: #999;
+        margin-top: 5px;
+      }
+
+      .tool-action {
+        border: 1px solid #e0e0e0;
+        border-radius: 8px;
+        padding: 20px;
+        margin-bottom: 15px;
+        background: #fff;
+        border-left: 4px solid;
+        transition: all 0.3s;
+      }
+
+      .tool-action.success {
+        border-left-color: #4caf50;
+      }
+
+      .tool-action.error {
+        border-left-color: #f44336;
+      }
+
+      .tool-action:hover {
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+      }
+
+      .tool-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 15px;
+      }
+
+      .tool-name {
+        font-weight: 600;
+        font-size: 18px;
+        color: #333;
+      }
+
+      .tool-mcp {
+        background: #667eea;
+        color: white;
+        padding: 4px 12px;
+        border-radius: 12px;
+        font-size: 12px;
+        font-weight: 600;
+      }
+
+      .tool-status {
+        padding: 4px 12px;
+        border-radius: 12px;
+        font-size: 12px;
+        font-weight: 600;
+      }
+
+      .tool-status.success {
+        background: #4caf50;
+        color: white;
+      }
+
+      .tool-status.error {
+        background: #f44336;
+        color: white;
+      }
+
+      .tool-details {
+        margin-top: 15px;
+      }
+
+      .tool-detail-item {
+        margin: 10px 0;
+      }
+
+      .tool-detail-label {
+        font-weight: 600;
+        color: #666;
+        font-size: 14px;
+        margin-bottom: 5px;
+      }
+
+      .tool-detail-value {
+        background: #f5f5f5;
+        padding: 10px;
+        border-radius: 4px;
+        font-family: "Courier New", monospace;
+        font-size: 13px;
+        white-space: pre-wrap;
+        word-break: break-all;
+        max-height: 200px;
+        overflow-y: auto;
+      }
+
+      .loading {
+        text-align: center;
+        padding: 40px;
+        color: #666;
+      }
+
+      .error {
+        background: #ffebee;
+        color: #c62828;
+        padding: 15px;
+        border-radius: 8px;
+        margin: 20px 0;
+      }
+
+      .refresh-btn {
+        background: #667eea;
+        color: white;
+        border: none;
+        padding: 10px 20px;
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 14px;
+        font-weight: 600;
+        margin-bottom: 20px;
+        transition: all 0.3s;
+      }
+
+      .refresh-btn:hover {
+        background: #5568d3;
+        transform: translateY(-2px);
+      }
+
+      .stats {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 20px;
+        margin-bottom: 30px;
+      }
+
+      .stat-card {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 20px;
+        border-radius: 8px;
+        text-align: center;
+      }
+
+      .stat-value {
+        font-size: 2.5em;
+        font-weight: bold;
+        margin-bottom: 5px;
+      }
+
+      .stat-label {
+        font-size: 14px;
+        opacity: 0.9;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>🤖 OMI Dashboard</h1>
+
+      <div class="tabs">
+        <button class="tab active" onclick="showTab('conversations')">
+          💬 Conversations
+        </button>
+        <button class="tab" onclick="showTab('tool-actions')">
+          🔧 Tool Actions
+        </button>
+      </div>
+
+      <div class="content">
+        <!-- Conversations Tab -->
+        <div id="conversations" class="tab-content active">
+          <button class="refresh-btn" onclick="loadConversations()">
+            🔄 Refresh
+          </button>
+          <div id="conversations-content">
+            <div class="loading">Loading conversations...</div>
+          </div>
+        </div>
+
+        <!-- Tool Actions Tab -->
+        <div id="tool-actions" class="tab-content">
+          <button class="refresh-btn" onclick="loadToolActions()">
+            🔄 Refresh
+          </button>
+          <div class="stats" id="tool-stats"></div>
+          <div id="tool-actions-content">
+            <div class="loading">Loading tool actions...</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      // API Configuration - Change this once to update all API calls
+      const API_BASE_URL = "http://localhost:3000";
+
+      function showTab(tabName) {
+        // Hide all tab contents
+        document.querySelectorAll(".tab-content").forEach((content) => {
+          content.classList.remove("active");
+        });
+
+        // Remove active class from all tabs
+        document.querySelectorAll(".tab").forEach((tab) => {
+          tab.classList.remove("active");
+        });
+
+        // Show selected tab content
+        document.getElementById(tabName).classList.add("active");
+
+        // Add active class to clicked tab
+        event.target.classList.add("active");
+
+        // Load data for the selected tab
+        if (tabName === "conversations") {
+          loadConversations();
+        } else if (tabName === "tool-actions") {
+          loadToolActions();
+        }
+      }
+
+      async function loadConversations() {
+        const content = document.getElementById("conversations-content");
+        content.innerHTML =
+          '<div class="loading">Loading conversations...</div>';
+
+        try {
+          const response = await fetch(
+            `${API_BASE_URL}/api/conversations?limit=100`
+          );
+          const data = await response.json();
+
+          if (!data.ok) {
+            throw new Error(data.error || "Failed to load conversations");
+          }
+
+          if (data.conversations.length === 0) {
+            content.innerHTML =
+              '<div class="loading">No conversations found.</div>';
+            return;
+          }
+
+          content.innerHTML = data.conversations
+            .map(
+              (conv) => `
+                    <div class="conversation-item">
+                        <div class="conversation-header">
+                            <span class="session-id">Session: ${conv.uid}</span>
+                            <span class="message-count">${
+                              conv.count
+                            } messages</span>
+                        </div>
+                        <div>
+                            ${conv.messages
+                              .map(
+                                (msg) => `
+                                <div class="message ${msg.role}">
+                                    <div class="message-header">${
+                                      msg.role === "user"
+                                        ? "👤 User"
+                                        : "🤖 Assistant"
+                                    }</div>
+                                    <div class="message-text">${escapeHtml(
+                                      msg.text || ""
+                                    )}</div>
+                                    <div class="message-time">${formatDate(
+                                      msg.created_at
+                                    )}</div>
+                                </div>
+                            `
+                              )
+                              .join("")}
+                        </div>
+                    </div>
+                `
+            )
+            .join("");
+        } catch (error) {
+          content.innerHTML = `<div class="error">Error: ${error.message}</div>`;
+        }
+      }
+
+      async function loadToolActions() {
+        const content = document.getElementById("tool-actions-content");
+        const stats = document.getElementById("tool-stats");
+        content.innerHTML =
+          '<div class="loading">Loading tool actions...</div>';
+
+        try {
+          const response = await fetch(
+            `${API_BASE_URL}/api/tool-actions?limit=200`
+          );
+          const data = await response.json();
+
+          if (!data.ok) {
+            throw new Error(data.error || "Failed to load tool actions");
+          }
+
+          // Calculate stats
+          const total = data.actions.length;
+          const successful = data.actions.filter((a) => a.success).length;
+          const failed = total - successful;
+          const mcpCounts = {};
+          data.actions.forEach((a) => {
+            mcpCounts[a.mcp_name] = (mcpCounts[a.mcp_name] || 0) + 1;
+          });
+          const uniqueMcps = Object.keys(mcpCounts).length;
+
+          stats.innerHTML = `
+                    <div class="stat-card">
+                        <div class="stat-value">${total}</div>
+                        <div class="stat-label">Total Actions</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value">${successful}</div>
+                        <div class="stat-label">Successful</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value">${failed}</div>
+                        <div class="stat-label">Failed</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value">${uniqueMcps}</div>
+                        <div class="stat-label">MCPs Used</div>
+                    </div>
+                `;
+
+          if (data.actions.length === 0) {
+            content.innerHTML =
+              '<div class="loading">No tool actions found.</div>';
+            return;
+          }
+
+          content.innerHTML = data.actions
+            .map(
+              (action) => `
+                    <div class="tool-action ${
+                      action.success ? "success" : "error"
+                    }">
+                        <div class="tool-header">
+                            <div>
+                                <span class="tool-name">${escapeHtml(
+                                  action.tool_name
+                                )}</span>
+                                <span class="tool-mcp">${escapeHtml(
+                                  action.mcp_name
+                                )}</span>
+                            </div>
+                            <span class="tool-status ${
+                              action.success ? "success" : "error"
+                            }">
+                                ${action.success ? "✓ Success" : "✗ Failed"}
+                            </span>
+                        </div>
+                        <div class="tool-details">
+                            <div class="tool-detail-item">
+                                <div class="tool-detail-label">Session:</div>
+                                <div class="tool-detail-value">${escapeHtml(
+                                  action.session_uid || "N/A"
+                                )}</div>
+                            </div>
+                            <div class="tool-detail-item">
+                                <div class="tool-detail-label">User Message:</div>
+                                <div class="tool-detail-value">${escapeHtml(
+                                  action.user_message || "N/A"
+                                )}</div>
+                            </div>
+                            <div class="tool-detail-item">
+                                <div class="tool-detail-label">Arguments:</div>
+                                <div class="tool-detail-value">${JSON.stringify(
+                                  action.tool_args || {},
+                                  null,
+                                  2
+                                )}</div>
+                            </div>
+                            ${
+                              action.result_summary
+                                ? `
+                                <div class="tool-detail-item">
+                                    <div class="tool-detail-label">Summary:</div>
+                                    <div class="tool-detail-value" style="background: #e8f5e9; color: #2e7d32; font-weight: 600;">${escapeHtml(
+                                      action.result_summary
+                                    )}</div>
+                                </div>
+                            `
+                                : ""
+                            }
+                            ${
+                              action.success
+                                ? `
+                                <div class="tool-detail-item">
+                                    <div class="tool-detail-label">Result:</div>
+                                    <div class="tool-detail-value">${formatToolResult(
+                                      action.tool_result
+                                    )}</div>
+                                </div>
+                            `
+                                : `
+                                <div class="tool-detail-item">
+                                    <div class="tool-detail-label">Error:</div>
+                                    <div class="tool-detail-value">${escapeHtml(
+                                      action.error_message || "Unknown error"
+                                    )}</div>
+                                </div>
+                            `
+                            }
+                            <div class="tool-detail-item">
+                                <div class="tool-detail-label">Time:</div>
+                                <div class="tool-detail-value">${formatDate(
+                                  action.created_at
+                                )}</div>
+                            </div>
+                        </div>
+                    </div>
+                `
+            )
+            .join("");
+        } catch (error) {
+          content.innerHTML = `<div class="error">Error: ${error.message}</div>`;
+        }
+      }
+
+      function formatToolResult(result) {
+        if (!result) return "N/A";
+        if (typeof result === "string") {
+          try {
+            const parsed = JSON.parse(result);
+            return JSON.stringify(parsed, null, 2);
+          } catch {
+            return escapeHtml(result);
+          }
+        }
+        return JSON.stringify(result, null, 2);
+      }
+
+      function escapeHtml(text) {
+        const div = document.createElement("div");
+        div.textContent = text;
+        return div.innerHTML;
+      }
+
+      function formatDate(dateString) {
+        if (!dateString) return "N/A";
+        const date = new Date(dateString);
+        return date.toLocaleString();
+      }
+
+      // Load conversations on page load
+      loadConversations();
+
+      // Auto-refresh every 30 seconds
+      setInterval(() => {
+        const activeTab = document.querySelector(".tab-content.active");
+        if (activeTab.id === "conversations") {
+          loadConversations();
+        } else if (activeTab.id === "tool-actions") {
+          loadToolActions();
+        }
+      }, 30000);
+    </script>
+  </body>
+</html>
