@@ -226,10 +226,6 @@ _Note: This is a mobile application. Screenshots and demo images can be included
 
 ## Contributing
 
-This project was developed for the AI Boomi Hackathon. Contributions and improvements are welcome!
-
-## License
-
-MIT License
+This project was developed by Charan and Nithish for the AI Boomi Hackathon. Contributions and improvements are welcome!
 
 ---
