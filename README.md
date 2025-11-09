@@ -1,223 +1,418 @@
-﻿## Brief Overview
+🧠 Omi.me — Open-Source AI Wearable & Companion App (Your Personal Second Brain)
 
-Omi.me is an open-source AI-powered wearable and companion app that we built to act as your personal second brain. It continuously captures and analyzes conversations in real time, automatically handling tasks like note-taking, summarization, and reminders. More than just an assistant,we made Omi.me can take action on your behalf—helping you stay focused and get more done effortlessly.
+Omi.me is an open-source AI-powered wearable and companion app designed to act as your personal second brain. It continuously captures and analyzes conversations in real time, automatically handling tasks like note-taking, summarization, reminders, and follow-ups. More than just an assistant, Omi.me can take action on your behalf—helping you stay focused and get more done effortlessly by turning natural speech into multi-app workflows.
 
-The system uses **FastRouter API** as a central hub that connects to multiple MCPs (Model Context Protocols) including Google Docs, Google Calendar, Gmail, Notion, Zomato, WhatsApp, and many more. The FastRouter API intelligently decides which tool to use based on the conversation context, or determines if it's just a normal conversation that doesn't require any action.
+✨ Highlights
 
-All actions and data are saved in MongoDB for persistence and retrieval, enabling features like email summarization, calendar management, document creation, and much more.
+Voice-to-action automation across your everyday tools
 
-## Project Idea
+Real-time transcription, intent detection, and execution
 
-The core idea is to create a seamless voice-to-action system where users can naturally speak their daily tasks and have them automatically executed across various platforms and services. Instead of manually opening apps, clicking buttons, or typing commands, users can simply speak naturally, and OMI handles the rest.
+FastRouter API orchestrates multiple MCPs (Model Context Protocol servers)
 
-**Example Workflow:**
+Persistent memory and full audit trails in MongoDB
 
-- User says: _"Create me a Google Doc about product pitching"_
-- OMI transcribes the conversation
-- AI processes the intent through Claude API
-- FastRouter API identifies the need for Google Docs MCP
-- System creates the document automatically
-- Action is logged in MongoDB
+Extensible integrations: Google Docs, Calendar, Gmail, Notion, WhatsApp, Zomato, and more
 
-## Tech Stack
+📚 Table of Contents
 
-- **Backend**: Node.js
-- **MCP Servers**: Online available MCP servers connected through our APIs
-- **Database**: MongoDB (for data persistence and retrieval)
-- **AI Processing**: Claude API (configurable to other AI services)
-- **API Hub**: FastRouter API (central orchestration layer)
-- **Authentication**: Google OAuth and OTP-based authentication
-- **Mobile App**: React Native with Expo (for user interface)
+What is Omi.me
 
-## Tools & MCPs Used
+How it Works (with workflow chart)
 
-### Communication & Messaging
+Example Workflow
 
-- **WhatsApp** - Send messages, share media, manage conversations
-- **Gmail** - Email management with advanced features:
-  - Summarize emails
-  - Mark as important/read/spam
-  - Send and receive emails
-  - Email organization
+Tech Stack
 
-### Calendar & Scheduling
+Tools & MCPs Used
 
-- **Google Calendar** - Complete calendar management:
-  - Create meetings at required times
-  - Update existing meetings
-  - Get meeting details
-  - Delete meetings
-  - Schedule management
+Key Features
 
-### Documentation & Productivity
+Architecture (with sequence & flow charts)
 
-- **Google Docs** - Document management:
+Setup & Installation
 
-  - Create documents
-  - Get document content
-  - Update documents
-  - Delete documents
+Configuration
 
-- **Google Slides** - Presentation management:
+Usage Examples
 
-  - Create presentations
-  - Get presentation content
-  - Update presentations
-  - Delete presentations
+Extensibility
 
-- **Notion** - All-in-one workspace:
-  - Create anything as per user's wish
-  - Delete content
-  - Get content
-  - Edit content
+Security & Privacy
 
-### Food & Lifestyle
+Future Enhancements
 
-- **Zomato** - Food ordering and restaurant discovery
+Contributing
 
-### Additional MCPs
+🌍 What is Omi.me
 
-The system is designed to be extensible, allowing easy integration of many more MCPs as needed.
+Omi.me bridges human intent and digital action. Speak naturally and let Omi handle the rest: capture key moments, summarize discussions, schedule meetings, draft documents, send emails or messages, and trigger structured workflows—without opening apps or typing commands. Powered by the FastRouter API, Omi intelligently routes requests to connected MCPs and decides when a message is conversational vs. actionable. All actions and context are stored in MongoDB for reliable recall, analytics, and continuous improvement.
 
-## Key Features
+⚙️ How it Works
 
-### 1. Voice Transcription
+OMI wearable captures audio and streams it for transcription
 
-- Real-time transcription of daily conversations via OMI device
-- Webhook-based processing for seamless integration
+AI detects user intent and context (tasks, notes, events, documents, messages)
 
-### 2. AI-Powered Intent Recognition
+FastRouter API chooses the right MCP(s) based on the conversation
 
-- Natural language processing to understand user intent
-- Context-aware decision making
-- Distinguishes between actionable requests and normal conversations
+The selected MCP(s) perform actions (e.g., create doc, schedule event, send email)
 
-### 3. Multi-MCP Orchestration
+Results and metadata are persisted in MongoDB; user receives confirmation
 
-- Centralized hub (FastRouter API) managing multiple MCPs
-- Intelligent routing to appropriate tools
-- Support for sequential and parallel MCP execution
+flowchart LR
+A[Voice Input\nOMI Wearable] --> B[Transcription]
+B --> C[Intent & Context\nAI Processing]
+C --> D{Action Needed?}
+D -- No --> E[Conversation Log\nMongoDB]
+D -- Yes --> F[FastRouter API\nTool Selection]
+F --> G[MCP(s)\nDocs/Calendar/Gmail/Notion/WhatsApp/Zomato]
+G --> H[Action Result]
+H --> I[Persist & Audit\nMongoDB]
+I --> J[Notify User\nCompanion App]
 
-### 4. Comprehensive Service Integration
+🧭 Example Workflow
 
-- **Email Management**: Summarize, categorize, and manage emails
-- **Calendar Management**: Full CRUD operations on calendar events
-- **Document Management**: Create, read, update, and delete documents
-- **Presentation Management**: Complete slide deck management
-- **Knowledge Management**: Flexible content creation and management in Notion
+User says: “Create me a Google Doc about product pitching”
 
-### 5. Data Persistence
+OMI transcribes the conversation
 
-- MongoDB integration for all actions and data
-- Conversation history tracking
-- Workflow execution logs
+AI processes the intent (Claude API or configured LLM)
 
-### 6. Authentication
+FastRouter API identifies Google Docs MCP
 
-- Google OAuth integration
-- OTP-based authentication
-- Secure MCP connection management
+System creates the document automatically with an initial outline or content
 
-## Architecture
+Action and metadata are logged in MongoDB (actor, timestamp, tool, payload)
 
-### Flow
+User receives a confirmation with a link to the document
+User says: “Schedule a meeting with the team tomorrow at 3 PM”
 
-1. **Voice Input**: User speaks naturally in daily conversations
-2. **Transcription**: OMI device transcribes speech to text
-3. **Webhook Processing**: Transcribed text sent via webhook
-4. **AI Analysis**: Claude API processes text to understand intent
-5. **Routing Decision**: FastRouter API decides which MCP to use
-6. **MCP Execution**: Selected MCP performs the required action
-7. **Data Storage**: Results and actions saved in MongoDB
-8. **Response**: User receives confirmation or results
+OMI transcribes and extracts time, attendees, title
 
-## Setup & Installation
+FastRouter routes to Google Calendar MCP
 
-### Prerequisites
+Event is created with reminders; conflicts handled if configured
 
-- Node.js (v16 or later)
-- MongoDB instance
-- OMI device with webhook configuration
-- Google Cloud credentials (for Google services)
-- API keys for Claude API and FastRouter API
+Event details and IDs stored in MongoDB
 
-### Backend Setup
+Confirmation returned to the user
 
-1. Navigate to the omi directory
-2. Install dependencies:
-   npm install
-3. Configure environment variables
-4. Set up MongoDB connection
-5. Configure OAuth credentials for Google services
-6. Set up webhook endpoints for OMI device
+🧰 Tech Stack
 
-### Mobile App Setup
+Backend: Node.js
 
-1. Navigate to the omi_app directory
-2. Install dependencies:
-   npm install
-3. Configure API endpoints in config.js
-4. Run the app:
-   npm start
+MCP Servers: Online available MCP servers connected through our APIs
 
-## Configuration
+Database: MongoDB (for data persistence and retrieval)
 
-### MCP Connection
+AI Processing: Claude API (configurable to other AI services)
 
-- Sign up with Google OAuth or use OTP authentication
-- Connect to desired MCPs through the authentication flow
-- MCPs are automatically configured and ready to use
+API Hub: FastRouter API (central orchestration layer)
 
-### API Configuration
+Authentication: Google OAuth and OTP-based authentication
 
-- Configure Claude API endpoint (can be changed as per requirements)
-- Set up FastRouter API as the central hub
-- Configure individual MCP server endpoints
+Mobile App: React Native with Expo (for the companion UI)
 
-## Usage Examples
+Hardware: OMI wearable device (audio capture + webhook delivery)
 
-### Creating a Document
+🔌 Tools & MCPs Used
+Communication & Messaging
 
-**User says**: _"Create me a Google Doc about product pitching"_
+WhatsApp: Send messages, share media, manage conversations
 
-- System creates a new Google Doc
-- Document is saved and accessible
-- Action logged in MongoDB
+Gmail: Email management with advanced features
 
-### Scheduling a Meeting
+Summarize emails
 
-**User says**: _"Schedule a meeting with the team tomorrow at 3 PM"_
+Mark as important/read/spam
 
-- Google Calendar MCP creates the event
-- Meeting details saved
-- Confirmation provided
+Send and receive emails
 
-### Managing Emails
+Labeling and organization
 
-**User says**: _"Mark all emails from John as important"_
+Calendar & Scheduling
 
-- Gmail MCP processes the request
-- Emails are marked accordingly
-- Status updated in database
+Google Calendar: Complete calendar management
 
-### Creating Notion Content
+Create meetings at required times
 
-**User says**: _"Create a Notion page for project planning"_
+Update existing meetings
 
-- Notion MCP creates the page
-- Content structure is set up
-- Page is accessible and editable
+Retrieve meeting details
 
-## Future Enhancements
+Delete meetings
 
-- [ ] Additional MCP integrations
-- [ ] Multi-language support
-- [ ] Advanced AI models integration
-- [ ] Analytics and insights dashboard
-- [ ] Custom workflow templates
+Schedule coordination and reminders
 
-## Contributing
+Documentation & Productivity
 
-This project was developed by Charan and Nithish for the AI Boomi Hackathon. Contributions and improvements are welcome!
+Google Docs: Document management
 
----
+Create documents
+
+Get document content
+
+Update documents
+
+Delete documents
+
+Google Slides: Presentation management
+
+Create presentations
+
+Get presentation content
+
+Update presentations
+
+Delete presentations
+
+Notion: Flexible workspace
+
+Create pages, databases, or content as requested
+
+Get content
+
+Edit content
+
+Delete content
+
+Food & Lifestyle
+
+Zomato: Food ordering and restaurant discovery
+
+Extensibility
+
+The system is designed for rapid MCP expansion, enabling new integrations with minimal boilerplate via FastRouter’s tool selection contracts and standardized auth flows.
+
+⭐ Key Features
+
+Voice Transcription
+
+Real-time transcription of daily conversations via OMI device
+
+Webhook-based ingestion for low-latency processing
+
+AI-Powered Intent Recognition
+
+Natural language parsing for goals, parameters, and entities
+
+Context-aware decision making and memory referencing
+
+Distinguishes between “just chatting” and actionable requests
+
+Multi-MCP Orchestration
+
+FastRouter API as a central decision hub
+
+Intelligent tool selection based on domain, permissions, and context
+
+Supports sequential or parallel MCP execution with result aggregation
+
+Comprehensive Service Integration
+
+Email: Summarize, organize, mark, send/receive
+
+Calendar: Full CRUD on events with conflicts and reminders
+
+Documents: Create/read/update/delete Docs and Slides
+
+Knowledge: Notion pages, updates, and structured content
+
+Data Persistence
+
+MongoDB collections for conversations, actions, entities, and audit logs
+
+Queryable history for summaries, analytics, and follow-ups
+
+Durable workflow execution logs with correlation IDs
+
+Authentication
+
+Google OAuth integration for Google MCPs
+
+OTP-based user sign-in for fast onboarding
+
+Secure MCP connection vaulting and token rotation
+
+🏛 Architecture
+sequenceDiagram
+autonumber
+participant U as User
+participant W as OMI Wearable
+participant T as Transcription
+participant AI as Intent & Context (Claude/LLM)
+participant FR as FastRouter API
+participant M as MCP(s)
+participant DB as MongoDB
+participant A as App (React Native)
+U->>W: Natural speech
+W->>T: Audio stream (webhook)
+T->>AI: Transcript text
+AI->>FR: Intent + entities + confidence
+FR->>M: Route to appropriate MCP(s)
+M-->>DB: Persist action/result
+M-->>FR: Tool responses
+FR-->>A: Confirmation + payload
+A-->>U: Notification/link
+
+Core Data Model (MongoDB)
+
+users: profile, auth bindings, preferences
+
+devices: wearable bindings, webhook endpoints
+
+conversations: transcript segments, timestamps, speaker labels
+
+intents: detected intents, entities, confidence, versions
+
+actions: requested operations, target MCP, status, retries
+
+results: normalized outputs and links (docId, eventId, messageId)
+
+audits: signed envelopes, request/response bodies (redacted), latencies
+
+permissions: scoped grants per provider/tool
+
+🛠 Setup & Installation
+Prerequisites
+
+Node.js v16+
+
+MongoDB instance (local or managed)
+
+OMI device with webhook configuration
+
+Google Cloud credentials (OAuth client for Docs/Calendar/Gmail)
+
+API keys for Claude API and FastRouter API
+
+Backend Setup
+
+Clone repository and navigate to backend folder (e.g., omi)
+
+Install dependencies: npm install
+
+Copy .env.example to .env and fill values
+
+Start local dev server: npm run dev
+
+Expose webhook (e.g., via ngrok) and configure on OMI device
+
+Mobile App Setup (React Native + Expo)
+
+Navigate to the companion app folder (e.g., omi_app)
+
+Install dependencies: npm install
+
+Set API base URLs in config.js
+
+Run the app: npm start (or expo start)
+
+⚙️ Configuration
+Environment Variables (Backend)
+
+PORT: API port
+
+MONGODB_URI: MongoDB connection string
+
+JWT_SECRET: token signing key (if used)
+
+FASTROUTER_URL: base URL for FastRouter API
+
+FASTROUTER_TOKEN: auth token
+
+CLAUDE_API_KEY: key for AI processing (configurable to other models)
+
+GOOGLE_CLIENT_ID: OAuth client ID
+
+GOOGLE_CLIENT_SECRET: OAuth client secret
+
+GOOGLE_REDIRECT_URI: OAuth redirect URL
+
+WEBHOOK_SIGNING_SECRET: verify device webhooks
+
+ALLOWED_ORIGINS: CORS list
+
+Authentication
+
+Sign in with Google OAuth for Google MCPs
+
+OTP-based login for users without OAuth or for device-only onboarding
+
+MCP Connections
+
+Connect MCPS via in-app flows (e.g., Google Docs/Calendar/Gmail, Notion, WhatsApp, Zomato)
+
+Tokens are securely stored and rotated as per provider best practices
+
+🚀 Usage Examples
+Creating a Document
+
+User says: “Create me a Google Doc about product pitching”
+
+Docs MCP creates a new document with title and starter sections
+
+Link returned in app; action logged in MongoDB
+
+Scheduling a Meeting
+
+User says: “Schedule a meeting with the team tomorrow at 3 PM”
+
+Calendar MCP creates event with invitees, reminders, and timezone handling
+
+Event ID and details saved and displayed
+
+Managing Emails
+
+User says: “Mark all emails from John as important”
+
+Gmail MCP finds matching messages and updates labels/importance
+
+Summary and counts stored in results collection
+
+Creating Notion Content
+
+User says: “Create a Notion page for project planning”
+
+Notion MCP creates the page with a default template
+
+Page URL returned and stored with entity references
+
+🧩 Extensibility
+
+Add an MCP by implementing the provider interface (capabilities, auth, actions)
+
+Register tool schema with FastRouter so it can route based on detected intent
+
+Provide minimal mapping for inputs/outputs to the normalized action/result records
+
+Update permissions to include the new provider scopes
+
+🔐 Security & Privacy
+
+Principle of least privilege: request only necessary scopes
+
+Token encryption at rest; short-lived tokens where supported
+
+Webhook signature validation and replay protection
+
+PII redaction in logs; per-user data export and deletion endpoints
+
+Configurable retention policies for transcripts and actions
+
+🗺 Future Enhancements
+
+Additional MCP integrations
+
+Multi-language speech/UX support
+
+Pluggable, model-agnostic AI layer with toolformer-style planning
+
+Analytics and insights dashboard
+
+Custom workflow templates and reusable voice macros
+
+🤝 Contributing
+
+This project was developed by Charan and Nithish for the AI Boomi Hackathon. Contributions and improvements are welcome! You can help by adding new MCPs, improving FastRouter decision quality, enhancing memory and summarization, optimizing the mobile UX, or expanding test coverage. Please open issues and pull requests with clear descriptions, steps to reproduce, and screenshots where helpful.
