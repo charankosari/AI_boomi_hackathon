@@ -115,7 +115,7 @@ git clone https://github.com/charankosari/AI_boomi_hackathon
 cd omi
 npm install
 cp .env.example .env
-npm run dev
+npm start
 
 # Mobile App Setup
 cd omi_app
