@@ -2,7 +2,7 @@
 
 ## Brief Overview
 
-OMI is an intelligent voice assistant system that transforms daily conversations into actionable tasks. Using an OMI device, we capture transcribed text from day-to-day conversations through webhooks. This transcribed text is then processed through AI (Claude API) to understand user intent and automatically trigger the appropriate tools and services.
+OMI is an open-source voice assistant framework that enables developers to build intelligent, voice-driven applications. In this project, we built an AI agent on top of the OMI framework that transforms daily conversations into actionable tasks. Using the OMI device, transcribed text from everyday conversations is captured through webhooks and processed by our system using AI (Claude API) to understand user intent and automatically trigger the appropriate tools and services.
 
 The system uses **FastRouter API** as a central hub that connects to multiple MCPs (Model Context Protocols) including Google Docs, Google Calendar, Gmail, Notion, Zomato, WhatsApp, and many more. The FastRouter API intelligently decides which tool to use based on the conversation context, or determines if it's just a normal conversation that doesn't require any action.
 
