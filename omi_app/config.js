@@ -8,7 +8,7 @@
  */
 
 // Change this to your backend server URL
-const BASE_URL = "https://23eda7f96e35.ngrok-free.app";
+const BASE_URL = "https://0cd4ee49deff.ngrok-free.app";
 
 export const CONFIG = {
   // Base URL for all API calls - CHANGE THIS to your backend URL

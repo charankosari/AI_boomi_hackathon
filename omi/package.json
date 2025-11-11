@@ -13,7 +13,9 @@
   "dependencies": {
     "@anthropic-ai/sdk": "^0.68.0",
     "@cocal/google-calendar-mcp": "^2.0.7",
+    "@huggingface/inference": "^4.13.2",
     "@modelcontextprotocol/sdk": "^1.21.0",
+    "@xenova/transformers": "^2.17.2",
     "chrono-node": "^2.9.0",
     "cors": "^2.8.5",
     "dotenv": "^17.2.3",

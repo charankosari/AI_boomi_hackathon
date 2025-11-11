@@ -19,6 +19,18 @@ const {
   isToolEnabled,
 } = require("./db.mongo");
 const {
+  retrieveRelevantContext,
+  buildRAGContext,
+  storeUserMessage,
+  storeAssistantResponse,
+  storeToolResult,
+  listRAGData,
+  getRAGStats,
+  getContactByName,
+  extractAndStoreContacts,
+  storeQAPair,
+} = require("./rag-service");
+const {
   parseDateTimeForCalendar,
   extractEventSummary,
 } = require("./date-parser");
@@ -555,14 +567,6 @@ async function retryAnthropicCall(apiCall, maxRetries = 5) {
       const jitter = Math.random() * 500; // 0-500ms random jitter
       const delayMs = Math.min(baseDelay + jitter, 30000); // Cap at 30s
 
-      console.log(
-        `⚠️ API error (${status}): ${
-          error.message || "Unknown error"
-        }. Retrying in ${Math.round(
-          delayMs
-        )}ms... (attempt ${attemptCount}/${maxRetries})`
-      );
-
       await new Promise((resolve) => setTimeout(resolve, delayMs));
     }
   }
@@ -577,18 +581,60 @@ async function askClaudeWithContext(uid, currentText) {
   // Get all history for knowledge/context queries
   const allHistory = await getAllContext(uid);
 
+  // STEP 1: RAG - Retrieve ALL relevant context FIRST (before MCP detection)
+  // This ensures RAG understands the full context before deciding which MCPs to use
+  let ragContext = "";
+  let ragContextForMCPDetection = "";
+  try {
+    // Retrieve general context for better understanding (increased from 5 to 8)
+    const retrievedDocs = await retrieveRelevantContext(uid, currentText, 8);
+    if (retrievedDocs && retrievedDocs.length > 0) {
+      ragContext = buildRAGContext(retrievedDocs);
+      const avgScore =
+        retrievedDocs.reduce((sum, d) => sum + (d.score || 0), 0) /
+        retrievedDocs.length;
+      console.log(
+        `🔍 RAG: Retrieved ${
+          retrievedDocs.length
+        } relevant context documents (avg relevance: ${avgScore.toFixed(3)})`
+      );
+
+      // Build context string for MCP detection (includes RAG context)
+      ragContextForMCPDetection = retrievedDocs
+        .map((doc) => doc.content)
+        .join(" ");
+    }
+  } catch (ragError) {
+    console.warn(
+      "RAG retrieval failed, continuing without RAG context:",
+      ragError.message
+    );
+    // Continue without RAG if it fails - it's optional
+  }
+
   const contextBlock = buildContextBlock(history, currentText, allHistory);
 
-  // Combine current text with recent context for better MCP detection
+  // Combine RAG context with regular context block
+  const contextWithRAG = ragContext
+    ? contextBlock
+      ? `${contextBlock}\n\n${ragContext}`
+      : ragContext
+    : contextBlock;
+
+  // STEP 2: MCP Detection - Use RAG context to better understand which MCPs to use
+  // Combine current text with recent context AND RAG context for better MCP detection
   // This helps when messages are split (e.g., "I need to see slots" + "in Google Calendar")
   const recentUserMessages = history
     .filter((m) => m.role === "user")
     .slice(-3)
     .map((m) => m.text || "")
     .join(" ");
-  const combinedText = `${recentUserMessages} ${currentText}`.trim();
 
-  // Detect which MCPs should be enabled based on combined text
+  // Include RAG context in MCP detection for better understanding
+  const combinedText =
+    `${recentUserMessages} ${ragContextForMCPDetection} ${currentText}`.trim();
+
+  // Detect which MCPs should be enabled based on combined text (now includes RAG context)
   const detectedMCPNames = getEnabledMCPs(combinedText);
 
   // Filter MCPs based on user preferences (check if tool is enabled for this user)
@@ -611,6 +657,33 @@ async function askClaudeWithContext(uid, currentText) {
       ", "
     )}]`
   );
+
+  // STEP 3: For each enabled MCP, retrieve MCP-specific RAG context
+  // This ensures each MCP gets context relevant to its domain
+  const mcpSpecificRAGContexts = new Map();
+  for (const mcpName of enabledMCPNames) {
+    try {
+      // Retrieve MCP-specific context from RAG
+      const mcpRAGDocs = await retrieveRelevantContext(
+        uid,
+        currentText,
+        5,
+        mcpName
+      );
+      if (mcpRAGDocs && mcpRAGDocs.length > 0) {
+        const mcpRAGContext = buildRAGContext(mcpRAGDocs);
+        mcpSpecificRAGContexts.set(mcpName, mcpRAGContext);
+        console.log(
+          `🔍 RAG (${mcpName}): Retrieved ${mcpRAGDocs.length} MCP-specific context documents`
+        );
+      }
+    } catch (mcpRAGError) {
+      console.warn(
+        `RAG retrieval for ${mcpName} failed, continuing without MCP-specific context:`,
+        mcpRAGError.message
+      );
+    }
+  }
 
   // Initialize enabled MCPs
   const enabledMCPs = [];
@@ -836,13 +909,111 @@ async function askClaudeWithContext(uid, currentText) {
   }
 
   // Build system message AFTER tools are built
+  // Include MCP-specific RAG context for better understanding
   let system =
     "You are a concise, helpful assistant. Detect the user's language and reply in the same language. " +
     "IMPORTANT: The complete conversation history is provided below for training and context purposes. " +
     "Use this history ONLY when it is specifically relevant to the current user message. " +
     "If the current message is about a new topic or unrelated to past messages, ignore the history and focus on the current request. " +
     "Only reference past messages when they directly help answer the current question or provide necessary context. " +
-    "DONT ASK ANYTHING AGAIN TO USER , he cant hear you just answer or take a step what ever it may be. ";
+    "DONT ASK ANYTHING AGAIN TO USER , he cant hear you just answer or take a step what ever it may be. " +
+    "CRITICAL: Only use tools when the user EXPLICITLY asks you to DO something (like 'send email', 'check messages', 'create event'). " +
+    "If the user just mentions a service casually (like 'Hey, are you able to listen?' or 'I use Gmail'), just respond normally without using tools. " +
+    "Act naturally and conversationally - don't automatically use tools just because a service is mentioned. ";
+
+  // Add MCP-specific RAG context to system prompt
+  if (mcpSpecificRAGContexts.size > 0) {
+    system += "\n\n=== MCP-SPECIFIC CONTEXT FROM PREVIOUS CONVERSATIONS ===\n";
+    for (const [mcpName, mcpContext] of mcpSpecificRAGContexts.entries()) {
+      system += `\n[${mcpName.toUpperCase()} MCP Context]:\n${mcpContext}\n`;
+    }
+    system += "=== END OF MCP-SPECIFIC CONTEXT ===\n";
+    system +=
+      "\nIMPORTANT: Use the MCP-specific context above to understand previous interactions with each MCP. " +
+      "This context helps you understand what the user has done before and what they might want to do now.\n";
+
+    // Special handling for WhatsApp MCP - extract contact mappings from RAG context
+    if (mcpSpecificRAGContexts.has("whatsapp")) {
+      const whatsappContext = mcpSpecificRAGContexts.get("whatsapp");
+      // Check if RAG context contains contact mappings
+      if (
+        whatsappContext.includes("nithish") ||
+        whatsappContext.includes("918074914825")
+      ) {
+        system +=
+          "\n[WHATSAPP CONTEXT]: Based on previous conversations, 'nithish' refers to WhatsApp recipient '918074914825'. " +
+          "When user mentions 'nithish' or 'send to nithish', use recipient '918074914825' in whatsapp_send_message.\n";
+      }
+    }
+
+    // Special handling for Gmail MCP - extract contact mappings from RAG context
+    if (mcpSpecificRAGContexts.has("gmail")) {
+      const gmailContext = mcpSpecificRAGContexts.get("gmail");
+      // Extract email mappings from context
+      const emailMatches = gmailContext.match(
+        /([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/g
+      );
+      if (emailMatches && emailMatches.length > 0) {
+        system +=
+          `\n[GMAIL CONTEXT]: Based on previous conversations, found email addresses: ${emailMatches
+            .slice(0, 5)
+            .join(", ")}. ` +
+          "Use these email addresses when user mentions contact names from previous conversations.\n";
+      }
+    }
+  }
+
+  // STEP 4: Retrieve contact information for mentioned names
+  // Extract potential contact names from user message
+  const contactNamePattern = /\b(nithish|nitish|nithi|[\w]+)\b/gi;
+  const mentionedNames = [];
+  let nameMatch;
+  while ((nameMatch = contactNamePattern.exec(currentText)) !== null) {
+    const name = nameMatch[1].toLowerCase();
+    if (
+      name.length > 2 &&
+      !["send", "message", "email", "to", "the", "a", "an"].includes(name)
+    ) {
+      mentionedNames.push(name);
+    }
+  }
+
+  // Retrieve contact information for mentioned names
+  const contactInfo = {};
+  for (const name of mentionedNames) {
+    try {
+      const contact = await getContactByName(uid, name);
+      if (contact) {
+        contactInfo[name] = contact;
+        console.log(`📇 Found contact for '${name}':`, {
+          email: contact.email,
+          phone: contact.phone,
+          mcp: contact.mcp_name,
+        });
+      }
+    } catch (contactErr) {
+      console.warn(
+        `Failed to retrieve contact for '${name}':`,
+        contactErr.message
+      );
+    }
+  }
+
+  // Add contact information to system prompt
+  if (Object.keys(contactInfo).length > 0) {
+    system += "\n\n=== CONTACT INFORMATION FROM PREVIOUS CONVERSATIONS ===\n";
+    for (const [name, contact] of Object.entries(contactInfo)) {
+      const contactParts = [];
+      if (contact.email) contactParts.push(`Email: ${contact.email}`);
+      if (contact.phone) contactParts.push(`Phone: ${contact.phone}`);
+      if (contact.mcp_name) contactParts.push(`MCP: ${contact.mcp_name}`);
+
+      system += `\n[${name.toUpperCase()}]: ${contactParts.join(", ")}\n`;
+    }
+    system +=
+      "\nIMPORTANT: When the user mentions a contact name above, use the corresponding email or phone number automatically. " +
+      "Do NOT ask for confirmation - just use the contact information from previous conversations.\n";
+  }
 
   if (tools.length > 0) {
     // Build list of available tools for Claude
@@ -886,14 +1057,21 @@ async function askClaudeWithContext(uid, currentText) {
     ) {
       system +=
         `\nFor WhatsApp operations, you MUST use whatsapp_* tools:\n` +
+        `- CRITICAL: Only use WhatsApp tools when the user EXPLICITLY asks you to DO something with WhatsApp (like "send message", "check messages", "list chats"). If the user just mentions WhatsApp casually or asks a question, respond normally without using tools.\n` +
+        `- IMPORTANT: If user says something like "Hey, are you able to listen?" or mentions WhatsApp in passing, just respond normally - don't automatically use WhatsApp tools.\n` +
         `- When user says "check whatsapp messages", "see whatsapp messages", "any whatsapp messages", "whatsapp messages", "check messages on whatsapp": USE whatsapp_list_messages to get recent messages\n` +
         `- When user says "list chats", "my chats", "whatsapp chats": USE whatsapp_list_chats to get all chats\n` +
         `- When user says "send a whatsapp message", "message on whatsapp", "text on whatsapp": USE whatsapp_send_message\n` +
         `- When user wants to find a contact: USE whatsapp_search_contacts with the contact name or number\n` +
-        `- When user provides a phone number: Use it directly in send_message (format: country code + number, e.g., "1234567890" or "+1234567890")\n` +
+        `- When user provides a phone number: Use it directly in send_message (format: country code + number without + or spaces, e.g., "918074914825" for India)\n` +
         `- When user mentions a contact name: First search using whatsapp_search_contacts, then use the phone number or JID from results\n` +
         `- IMPORTANT: Always execute the action when user requests it - don't just describe what you would do\n` +
-        `- Phone numbers should include country code (e.g., for US: +1234567890 or 1234567890)\n`;
+        `- Phone numbers should include country code without + or spaces (e.g., "918074914825" for India)\n` +
+        `- CRITICAL: When user says "send to nithish", "send message to nithish", "message nithish", "text nithish", or mentions sending to nithish: IMMEDIATELY use whatsapp_send_message with recipient "918074914825" and extract the message content from the user's request. Do NOT ask for confirmation - just send it.\n` +
+        `- CRITICAL: When user says "send summary" or "send the summary": Send the current summary of the recent conversation to nithish (recipient "918074914825") using whatsapp_send_message\n` +
+        `- IMPORTANT: The system automatically checks for duplicate messages before sending. If a similar message was already sent to the same recipient within the last 5 minutes, it will skip sending and inform you that the message was already sent. You don't need to check for duplicates manually.\n` +
+        `- Example: If user says "send to nithish: Hello", immediately call whatsapp_send_message with recipient="918074914825" and message="Hello"\n` +
+        `- Example: If user says "message nithish about the meeting", extract the message content and call whatsapp_send_message with recipient="918074914825" and the extracted message\n`;
     }
 
     // Add specific guidance for Google Calendar
@@ -986,6 +1164,8 @@ async function askClaudeWithContext(uid, currentText) {
     ) {
       system +=
         `\nFor Gmail operations, you MUST use gmail_* or google-gmail_* tools:\n` +
+        `- CRITICAL: Only use Gmail tools when the user EXPLICITLY asks you to DO something with Gmail (like "send email", "check email", "create draft"). If the user just mentions Gmail casually or asks a question about Gmail, respond normally without using tools.\n` +
+        `- IMPORTANT: If user says something like "Hey, are you able to listen?" or mentions Gmail in passing, just respond normally - don't automatically use Gmail tools.\n` +
         `- When user says "create draft", "create email draft", "save draft", "draft email", "create a draft": USE gmail_create-draft with subject and body (this saves to Gmail drafts folder)\n` +
         `- When user says "list drafts", "show drafts", "my drafts", "get drafts": USE gmail_list-drafts\n` +
         `- When user says "delete draft", "delete the draft", "delete drafts", "remove draft", "can you delete the draft [subject/content]": \n` +
@@ -1024,6 +1204,7 @@ async function askClaudeWithContext(uid, currentText) {
         `  4. Use gmail_send-draft with the draft ID (the draft's existing recipient will be used)\n` +
         `- When user says "send draft [draft ID]" or "send draft [draft ID] to [email]": USE gmail_send-draft with draft ID and recipient (if provided)\n` +
         `- When user says "send email", "compose email", "write email", "create email": USE gmail_send-email (this sends immediately)\n` +
+        `- IMPORTANT: The system automatically checks for duplicate emails before sending. If a similar email was already sent to the same recipient within the last 5 minutes, it will skip sending and inform you that the email was already sent. You don't need to check for duplicates manually.\n` +
         `- When user says "check email", "check inbox", "read email", "check mail": USE gmail_list-emails\n` +
         `- When user says "spam emails", "spam mails", "see spam", "check spam", "junk mail": USE gmail_get-spam-emails\n` +
         `- When user says "mark as spam", "mark email as spam", "mark mails as spam", "mark unnecessary as spam": USE gmail_mark-as-spam with message ID(s)\n` +
@@ -1121,9 +1302,9 @@ async function askClaudeWithContext(uid, currentText) {
   }
 
   // Add current user message with context block if available
-  // The contextBlock contains the complete conversation history for training/context
-  const userContent = contextBlock
-    ? `${contextBlock}\n\n=== CURRENT USER MESSAGE ===\n${
+  // The contextWithRAG contains the complete conversation history + RAG-retrieved context
+  const userContent = contextWithRAG
+    ? `${contextWithRAG}\n\n=== CURRENT USER MESSAGE ===\n${
         currentText || "Say hello."
       }`
     : `Current user message:\n${currentText || "Say hello."}`;
@@ -1854,6 +2035,173 @@ async function askClaudeWithContext(uid, currentText) {
           JSON.stringify(args).slice(0, 200)
         );
 
+        // Check for duplicate messages (WhatsApp or Email) before sending
+        const isMessageTool =
+          (toolInfo.mcpName === "whatsapp" &&
+            (mcpToolName === "send_message" ||
+              toolName.includes("send_message"))) ||
+          (toolInfo.mcpName === "gmail" &&
+            (mcpToolName === "send-email" ||
+              toolName.includes("send-email") ||
+              mcpToolName === "send_email"));
+
+        if (isMessageTool) {
+          try {
+            // Get recent tool actions (last 20) to check for duplicates
+            const recentActions = await listToolActions(uid, 20);
+            const recipient = args.recipient || args.to || args.recipient_email;
+            const messageContent =
+              args.message || args.body || args.text || args.content || "";
+            const currentUserMessageForContext =
+              currentUserMessage || currentText || "";
+
+            // Check if a similar message was already sent recently (within last 5 minutes)
+            const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
+            const duplicate = recentActions.find((action) => {
+              // Check if it's the same tool type
+              const isSameTool =
+                (action.tool_name === toolName ||
+                  action.tool_name?.includes("send_message") ||
+                  action.tool_name?.includes("send-email") ||
+                  action.tool_name?.includes("send_email")) &&
+                action.mcp_name === toolInfo.mcpName;
+
+              if (!isSameTool) return false;
+
+              // Check if it was sent recently
+              const actionTime = new Date(action.created_at);
+              if (actionTime < fiveMinutesAgo) return false;
+
+              // Check if recipient matches
+              const actionRecipient =
+                action.tool_args?.recipient ||
+                action.tool_args?.to ||
+                action.tool_args?.recipient_email;
+              if (
+                recipient &&
+                actionRecipient &&
+                recipient !== actionRecipient
+              ) {
+                return false;
+              }
+
+              // Check if message content is similar (at least 50% match)
+              const actionMessage =
+                action.tool_args?.message ||
+                action.tool_args?.body ||
+                action.tool_args?.text ||
+                action.tool_args?.content ||
+                "";
+              let messageSimilarity = 0;
+              if (messageContent && actionMessage) {
+                messageSimilarity = jaccard(
+                  messageContent.toLowerCase(),
+                  actionMessage.toLowerCase()
+                );
+              }
+
+              // Check if user context/topic is similar (at least 40% match)
+              // This checks if the user asked about the same topic/context
+              const actionUserMessage = action.user_message || "";
+              let contextSimilarity = 0;
+              if (currentUserMessageForContext && actionUserMessage) {
+                contextSimilarity = jaccard(
+                  currentUserMessageForContext.toLowerCase(),
+                  actionUserMessage.toLowerCase()
+                );
+              }
+
+              // Consider it a duplicate if:
+              // 1. Message content is similar (50%+ match), OR
+              // 2. User context/topic is similar (40%+ match) - same topic being discussed
+              // This prevents sending multiple messages about the same topic/context
+              const isDuplicate =
+                messageSimilarity >= 0.5 || contextSimilarity >= 0.4;
+
+              if (!isDuplicate) return false;
+
+              // Check if it was successful
+              return action.success === true;
+            });
+
+            if (duplicate) {
+              // Calculate similarities for logging
+              const duplicateMessage =
+                duplicate.tool_args?.message ||
+                duplicate.tool_args?.body ||
+                duplicate.tool_args?.text ||
+                duplicate.tool_args?.content ||
+                "";
+              const duplicateUserMessage = duplicate.user_message || "";
+              const msgSimilarity =
+                messageContent && duplicateMessage
+                  ? jaccard(
+                      messageContent.toLowerCase(),
+                      duplicateMessage.toLowerCase()
+                    )
+                  : 0;
+              const ctxSimilarity =
+                currentUserMessageForContext && duplicateUserMessage
+                  ? jaccard(
+                      currentUserMessageForContext.toLowerCase(),
+                      duplicateUserMessage.toLowerCase()
+                    )
+                  : 0;
+
+              console.log(
+                `⚠️ Duplicate message detected - skipping send. Previous message sent at ${duplicate.created_at}`
+              );
+              console.log(
+                `   Message similarity: ${(msgSimilarity * 100).toFixed(
+                  1
+                )}%, Context similarity: ${(ctxSimilarity * 100).toFixed(1)}%`
+              );
+
+              // Return a result indicating the message was already sent
+              const duplicateResult = {
+                success: true,
+                message: `Message already sent to ${
+                  recipient || "recipient"
+                } at ${new Date(
+                  duplicate.created_at
+                ).toLocaleString()} about the same topic/context. Skipping duplicate send.`,
+                duplicate: true,
+                previous_sent_at: duplicate.created_at,
+                reason:
+                  msgSimilarity >= 0.5
+                    ? "similar message content"
+                    : "same conversation context/topic",
+              };
+
+              // Save this as a tool action (skipped duplicate)
+              await saveToolAction({
+                session_uid: uid,
+                tool_name: toolName,
+                mcp_name: toolInfo.mcpName,
+                tool_args: args,
+                tool_result: duplicateResult,
+                result_summary: "Duplicate message detected - skipped sending",
+                success: true,
+                user_message: currentUserMessage || currentText || "",
+              });
+
+              // Return the duplicate result in the expected format (MCP format)
+              toolResults.push({
+                role: "tool",
+                tool_call_id: call.id,
+                content: JSON.stringify(duplicateResult),
+              });
+              continue; // Skip the actual tool call
+            }
+          } catch (duplicateCheckErr) {
+            console.warn(
+              "Failed to check for duplicate messages, proceeding anyway:",
+              duplicateCheckErr.message
+            );
+            // Continue with sending if duplicate check fails
+          }
+        }
+
         // Apply Notion-specific adapter if needed
         if (toolInfo.mcpName === "notion") {
           const adapted = await adaptNotionCall(mcpProxy, mcpToolName, args);
@@ -1941,6 +2289,43 @@ async function askClaudeWithContext(uid, currentText) {
           });
         } catch (saveErr) {
           console.error("Failed to save tool action:", saveErr);
+        }
+
+        // RAG: Store tool result with embedding (async, don't block)
+        try {
+          const toolResultText =
+            resultSummary ||
+            (typeof result === "string" ? result : JSON.stringify(result));
+          storeToolResult(uid, toolResultText, toolName, toolInfo.mcpName, {
+            user_message: currentUserMessage || currentText || "",
+            tool_args: args,
+            result_summary: resultSummary,
+          })
+            .then(() => {
+              console.log(
+                `📚 RAG Training: Stored tool result from ${toolInfo.mcpName}/${toolName} with embedding`
+              );
+            })
+            .catch((err) =>
+              console.warn(
+                "Failed to store tool result embedding:",
+                err.message
+              )
+            );
+
+          // Extract and store contacts from tool result (async, don't block)
+          extractAndStoreContacts(uid, result, toolName, toolInfo.mcpName, {
+            user_message: currentUserMessage || currentText || "",
+            tool_args: args,
+            result_summary: resultSummary,
+          }).catch((err) =>
+            console.warn("Failed to extract and store contacts:", err.message)
+          );
+        } catch (ragErr) {
+          console.warn(
+            "Failed to prepare tool result for RAG:",
+            ragErr.message
+          );
         }
 
         // Enhanced logging for calendar events
@@ -2394,6 +2779,54 @@ app.post("/api/omi", async (req, res) => {
       raw: req.body,
     });
 
+    // RAG: Store user message with embedding (async, don't block)
+    storeUserMessage(uid, text, {
+      provider: "openai (fastrouter.ai)",
+      model: CLAUDE_MODEL,
+    })
+      .then(() => {
+        console.log(`📚 RAG Training: Stored user message with embedding`);
+      })
+      .catch((err) =>
+        console.warn("Failed to store user message embedding:", err.message)
+      );
+
+    // Extract and store contacts from user message (for entity linking)
+    // This helps connect different representations (e.g., "nithishbaddula a gmail dot com" → "nithishbaddula@gmail.com")
+    try {
+      const {
+        extractContacts,
+        normalizeEmail,
+        storeContact,
+      } = require("./rag-service");
+      const contacts = extractContacts(text);
+
+      // Store any emails found in the message
+      for (const email of contacts.normalized_emails || contacts.emails) {
+        if (email) {
+          // Try to extract name from context
+          const nameMatch = text.match(/\b(nithish|nitish|nithi|[\w]+)\b/i);
+          const extractedName = nameMatch ? nameMatch[1] : null;
+
+          if (extractedName) {
+            await storeContact(uid, extractedName, email, null, null, {
+              source: "user_message",
+              extracted_at: new Date().toISOString(),
+            });
+            console.log(
+              `🔗 Entity Linking: Stored contact ${extractedName} -> ${email} from user message`
+            );
+          }
+        }
+      }
+    } catch (contactErr) {
+      // Don't fail if contact extraction fails
+      console.warn(
+        "Failed to extract contacts from user message:",
+        contactErr.message
+      );
+    }
+
     const reply = await askClaudeWithContext(uid, text || "Say hello.");
 
     await saveMessage({
@@ -2403,6 +2836,36 @@ app.post("/api/omi", async (req, res) => {
       provider: "openai (fastrouter.ai)",
       model: CLAUDE_MODEL,
     });
+
+    // RAG: Store assistant response with embedding (async, don't block)
+    storeAssistantResponse(uid, reply, {
+      provider: "openai (fastrouter.ai)",
+      model: CLAUDE_MODEL,
+    })
+      .then(() => {
+        console.log(
+          `📚 RAG Training: Stored assistant response with embedding`
+        );
+      })
+      .catch((err) =>
+        console.warn(
+          "Failed to store assistant response embedding:",
+          err.message
+        )
+      );
+
+    // RAG: Store Q&A pair together (async, don't block)
+    // This helps RAG understand the relationship between questions and answers
+    storeQAPair(uid, text, reply, {
+      provider: "openai (fastrouter.ai)",
+      model: CLAUDE_MODEL,
+    })
+      .then(() => {
+        console.log(`📚 RAG Training: Stored Q&A pair with embedding`);
+      })
+      .catch((err) =>
+        console.warn("Failed to store Q&A pair embedding:", err.message)
+      );
 
     console.log("Reply:", reply);
 
@@ -2599,6 +3062,48 @@ app.post("/api/user-preferences", async (req, res) => {
       ok: true,
       uid,
       preferences: updatedPrefs,
+    });
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
+// API endpoint to get RAG training data
+app.get("/api/rag/data", async (req, res) => {
+  try {
+    const options = {
+      session_uid: req.query.uid || null,
+      content_type: req.query.content_type || null,
+      mcp_name: req.query.mcp_name || null,
+      tool_name: req.query.tool_name || null,
+      limit: Math.min(500, Number(req.query.limit) || 100),
+      skip: Number(req.query.skip) || 0,
+      sort: req.query.sort || "newest", // 'newest' or 'oldest'
+    };
+
+    // Remove null values
+    Object.keys(options).forEach(
+      (key) => options[key] === null && delete options[key]
+    );
+
+    const data = await listRAGData(options);
+    res.json({
+      ok: true,
+      ...data,
+    });
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
+// API endpoint to get RAG statistics
+app.get("/api/rag/stats", async (req, res) => {
+  try {
+    const session_uid = req.query.uid || null;
+    const stats = await getRAGStats(session_uid);
+    res.json({
+      ok: true,
+      stats,
     });
   } catch (e) {
     res.status(500).json({ ok: false, error: e.message });

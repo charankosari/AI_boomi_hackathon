@@ -42,7 +42,6 @@ class OmiIntegration {
         const response = await fetch(`${healthUrl}?challenge=test`);
         if (response.ok) {
           this.isConnected = true;
-          console.log("Omi Integration: Connected to backend");
           return {
             success: true,
             message: "Connected to Omi backend",
